@@ -30,3 +30,15 @@
 *.exe
 *.out
 *.app
+
+# IDE
+.idea/
+.DS_Store
+
+# cache
+cache/
+code/bin/
+out/
+log/
+ntl-10.3.0/
+ntl-10.3.0.tar

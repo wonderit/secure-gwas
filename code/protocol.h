@@ -442,7 +442,7 @@ bool logireg_protocol(MPCEnv& mpc, int pid) {
   Vec<ZZ_p> b0;
   Mat<ZZ_p> bv;
   Vec<ZZ_p> bx;
-  mpc.ParallelLogisticRegression(b0, bv, bx, X, X_mask, V, V_mask, pheno, pheno_mask, 500);
+  mpc.ParallelLogisticRegression(b0, bv, bx, X, X_mask, V, V_mask, pheno, pheno_mask, 5);
 
   fs.open(cache(pid, "logireg_final_coeff").c_str(), ios::out | ios::binary);
   if (pid > 0) {
