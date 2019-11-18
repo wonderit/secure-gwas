@@ -111,6 +111,14 @@ bool Param::ParseFile(const char *param_file) {
       ret = Convert(v, Param::NUM_SNPS, k);
     } else if (k == "NUM_COVS") {
       ret = Convert(v, Param::NUM_COVS, k);
+    } else if (k == "M1_NUM_ROW") {
+      ret = Convert(v, Param::M1_NUM_ROW, k);
+    } else if (k == "M1_NUM_COL") {
+      ret = Convert(v, Param::M1_NUM_COL, k);
+    } else if (k == "M2_NUM_ROW") {
+      ret = Convert(v, Param::M2_NUM_ROW, k);
+    } else if (k == "M2_NUM_COL") {
+      ret = Convert(v, Param::M2_NUM_COL, k);
     } else if (k == "DEBUG") {
       ret = Convert(v, Param::DEBUG, k);
     } else {
@@ -169,6 +177,12 @@ long Param::DIV_MAX_N = 100000;
 long Param::NUM_INDS = 1000;
 long Param::NUM_SNPS = 1000;
 long Param::NUM_COVS = 10;
+
+
+long Param::M1_NUM_ROW = 2;
+long Param::M1_NUM_COL = 3;
+long Param::M2_NUM_ROW = 3;
+long Param::M2_NUM_COL = 2;
 
 long Param::PITER_BATCH_SIZE = 100;
 long Param::PAR_THRES = 50;

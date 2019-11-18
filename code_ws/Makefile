@@ -8,7 +8,7 @@ BUILD = build
 PROGS = bin
 
 SRC = crypto.cpp connect.cpp aesstream.cpp mpc.cpp param.cpp
-PROGNAMES = DataSharingClient GenerateKey mpc_multiply
+PROGNAMES = DataSharingClient GenerateKey MatMultClient
 
 OBJPATHS = $(patsubst %.cpp,$(BUILD)/%.o, $(SRC))
 TESTPATHS = $(addprefix $(PROGS)/, $(PROGNAMES))

@@ -13,6 +13,8 @@
 #include <fstream>
 #include <chrono>
 #include <NTL/BasicThreadPool.h>
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
 
 using namespace NTL;
 using namespace std;
@@ -871,11 +873,11 @@ public:
 
   template<class T>
   void BeaverPartition(Mat<T>& ar, Mat<T>& am, Mat<T>& a, int fid = 0) {
-    if (debug) cout << "BeaverPartition: " << a.NumRows() << ", " << a.NumCols() << endl;
+    cout << "BeaverPartition: " << a.NumRows() << ", " << a.NumCols() << endl;
 
     int nrow = a.NumRows();
     int ncol = a.NumCols();
-  
+    spdlog::info("pid :: {}", pid);
     if (pid == 0) {
       Mat<T> x1;
       SwitchSeed(1);
@@ -1427,6 +1429,7 @@ private:
   template<class T>
   void MultAux(Mat<T>& c, Mat<T>& a, Mat<T>& b, bool elem_wise, int fid = 0) {
     if (debug) cout << "MultAux: (" << a.NumRows() << ", " << a.NumCols() << "), (" << b.NumRows() << ", " << b.NumCols() << ")" << endl;
+    cout << "MultAux: (" << a.NumRows() << ", " << a.NumCols() << "), (" << b.NumRows() << ", " << b.NumCols() << ")" << endl;
     if (elem_wise) {
       assert(a.NumRows() == b.NumRows() && a.NumCols() == b.NumCols());
     } else {
@@ -1440,6 +1443,7 @@ private:
     BeaverPartition(ar, am, a, fid);
     BeaverPartition(br, bm, b, fid);
 
+    spdlog::info("row:col = {}:{}", out_rows, out_cols);
     Init(c, out_rows, out_cols);
     BeaverMult(c, ar, am, br, bm, elem_wise, fid);
     

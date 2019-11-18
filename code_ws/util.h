@@ -9,6 +9,8 @@
 #include <iostream>
 #include <stdio.h>
 
+#include <string_view>
+
 using namespace std;
 using namespace NTL;
 
@@ -307,6 +309,41 @@ static inline double FPToDouble(ZZ_p& a, int k, int f) {
   Mat<double> bm;
   FPToDouble(bm, am, k, f);
   return bm[0][0];
+}
+
+static inline void PrintMat(Mat<long>& b) {
+  for (int i = 0; i < b.NumRows(); i++) {
+    for (int j = 0; j < b.NumCols(); j++) {
+      cout << " " << b[i][j] << " ";
+    }
+    cout<<"\n";
+  }
+}
+
+static inline void PrintMat(Mat<double>& b) {
+  for (int i = 0; i < b.NumRows(); i++) {
+    for (int j = 0; j < b.NumCols(); j++) {
+      cout << " " << b[i][j] << " ";
+    }
+    cout<<"\n";
+  }
+}
+
+static inline void PrintMat(Mat<ZZ_p>& b) {
+  for (int i = 0; i < b.NumRows(); i++) {
+    for (int j = 0; j < b.NumCols(); j++) {
+      cout << " " << b[i][j] << " ";
+    }
+    cout<<"\n";
+  }
+}
+static inline void PrintMat(Mat<ZZ>& b) {
+  for (int i = 0; i < b.NumRows(); i++) {
+    for (int j = 0; j < b.NumCols(); j++) {
+      cout << " " << b[i][j] << " ";
+    }
+    cout<<"\n";
+  }
 }
 
 #endif

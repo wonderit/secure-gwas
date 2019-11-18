@@ -1,7 +1,7 @@
 #ifndef __PROTOCOL_H_
 #define __PROTOCOL_H_
 
-//#include "gwasiter.h"
+#include "gwasiter.h"
 #include "mpc.h"
 #include "util.h"
 #include <vector>
@@ -15,6 +15,8 @@
 #include <algorithm>
 
 #include <chrono>
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
 
 using namespace NTL;
 using namespace std;
@@ -57,6 +59,135 @@ string outname(string desc) {
   ostringstream oss;
   oss << Param::OUTPUT_FILE_PREFIX << "_" << desc << ".txt";
   return oss.str();
+}
+
+bool matmult_protocol(MPCEnv& mpc, int pid) {
+  SetNumThreads(Param::NUM_THREADS);
+  cout << AvailableThreads() << " threads created" << endl;
+
+//  int ntop = 100;
+
+  int m1_row = Param::M1_NUM_ROW;
+  int m1_col = Param::M1_NUM_COL;
+  int m2_row = Param::M2_NUM_ROW;
+  int m2_col = Param::M2_NUM_COL;
+
+//  cout << "n0: " << n0 << ", " << "m0: " << m0 << endl;
+
+  // Shared variables
+  string s;
+  fstream fs;
+  ofstream ofs;
+  ifstream ifs;
+  streampos strpos;
+  int ind;
+  Vec<ZZ_p> tmp_vec;
+  Mat<ZZ_p> tmp_mat;
+
+//  ZZ_p fp_one = DoubleToFP(1, Param::NBIT_K, Param::NBIT_F);
+  ZZ_p fp_one;
+  IntToFP(fp_one, 1, Param::NBIT_K, Param::NBIT_F);
+
+  Mat<ZZ_p> m1;
+  Mat<ZZ_p> m2;
+  Init(m1, m1_row, m1_col);
+  Init(m2, m2_row, m2_col);
+
+  if (!exists(cache(pid, "input_m1_m2"))) {
+    cout << "Initial data sharing results not found:" << endl;
+    cout << "\t" << cache(pid, "input_m1_m2") << endl;
+    return false;
+  }
+
+  spdlog::info("Initial data sharing results found");
+
+  ifs.open(cache(pid, "input_m1_m2").c_str(), ios::binary);
+
+  if (pid > 0) {
+    mpc.ImportSeed(10, ifs);
+  } else {
+    for (int p = 1; p <= 2; p++) {
+      mpc.ImportSeed(10 + p, ifs);
+    }
+  }
+  mpc.ReadFromFile(m1, ifs, m1_row, m1_col);
+  mpc.ReadFromFile(m2, ifs, m2_row, m2_col);
+
+
+  ifs.close();
+
+  spdlog::info("PID : {} - m1 & m2 loaded", pid);
+  if (pid == 2) {
+    mpc.SendMat(m1, 0);
+    mpc.SendMat(m2, 0);
+  } else if (pid == 0) {
+    mpc.ReceiveMat(m1, 2, m1_row, m1_col);
+    mpc.ReceiveMat(m2, 2, m2_row, m2_col);
+  }
+
+  // In practice this would be done in one batch
+  Mat<ZZ_p> m1_mask;
+  Mat<ZZ_p> m2_mask;
+  Mat<ZZ_p> tmp_mask1;
+  Mat<ZZ_p> tmp_mask2;
+
+  Init(m1_mask, m1_row, m1_col);
+  Init(m2_mask, m2_row, m2_col);
+
+  if (pid > 0) {
+    mpc.SwitchSeed(10);
+    mpc.RandMat(m1_mask, m1_row, m1_col);
+    mpc.RandMat(m2_mask, m2_row, m2_col);
+    mpc.RestoreSeed();
+
+  } else {
+    for (int p = 1; p <= 2; p++) {
+      mpc.SwitchSeed(10 + p);
+      mpc.RandMat(tmp_mask1, m1_row, m1_col);
+      mpc.RandMat(tmp_mask2, m2_row, m2_col);
+
+      // CP0
+      // a = [a]1 + [a]2
+      m1_mask += tmp_mask1;
+      m2_mask += tmp_mask2;
+      mpc.RestoreSeed();
+    }
+  }
+
+  // Matrix Multiplication Start
+  Mat<ZZ_p> mat;
+  Init(mat, m1_row, m2_col);
+  mpc.BeaverMultMat(mat, m1, m1_mask, m2, m2_mask);
+  mpc.BeaverReconstruct(mat);
+
+
+  mpc.RevealSym(mat);
+
+  spdlog::info("Mat mult completed");
+  PrintMat(mat);
+
+
+  mpc.AddPublic(mat, fp_one);
+
+  spdlog::info("Mat add fp_one");
+  PrintMat(mat);
+
+  mat *= fp_one;
+
+  spdlog::info("multiply fp_one to mat");
+  PrintMat(mat);
+
+  // Check Matrix 1
+  mpc.RevealSym(m1_mask);
+  m1 = m1_mask + m1;
+  spdlog::info("Check for Matrix 1");
+  PrintMat(m1);
+
+  // Check Matrix 2
+  mpc.RevealSym(m2_mask);
+  m2 = m2_mask + m2;
+  spdlog::info("Check for Matrix 2");
+  PrintMat(m2);
 }
 
 bool logireg_protocol(MPCEnv& mpc, int pid) {
@@ -468,18 +599,37 @@ bool logireg_protocol(MPCEnv& mpc, int pid) {
 }
 
 bool data_sharing_protocol(MPCEnv& mpc, int pid) {
-  int n = Param::NUM_INDS;
+  int m1_row = Param::M1_NUM_ROW;
+  int m1_col = Param::M1_NUM_COL;
+  int m2_row = Param::M2_NUM_ROW;
+  int m2_col = Param::M2_NUM_COL;
 
   fstream fs;
 
-  Vec<ZZ_p> pheno;
-  Init(pheno, n);
+  Mat<ZZ_p> m1;
+  Mat<ZZ_p> m2;
+  Init(m1, m1_row, m1_col);
+  Init(m2, m2_row, m2_col);
 
-  Mat<ZZ_p> cov;
-  Init(cov, n, Param::NUM_COVS);
+// get cached file
+  fs.open(cache(pid, "input_m1_m2").c_str(), ios::out | ios::binary);
 
-  fs.open(cache(pid, "input_geno").c_str(), ios::out | ios::binary);
-  if (pid > 0) {
+
+  GwasIterator git(mpc, pid);
+
+  git.Init();
+
+  spdlog::info("Begin Processing");
+
+  tic();
+
+  git.GetM1M2(m1, m2);
+
+  // In practice this would be done in one batch
+  Mat<ZZ_p> m1_mask;
+  Mat<ZZ_p> m2_mask;
+
+  if(pid > 0) {
     mpc.ExportSeed(fs, 0);
   } else {
     for (int p = 1; p <= 2; p++) {
@@ -487,65 +637,97 @@ bool data_sharing_protocol(MPCEnv& mpc, int pid) {
     }
   }
 
-//  GwasIterator git(mpc, pid);
+  mpc.BeaverPartition(m1_mask, m1); // secret, public
+  mpc.BeaverPartition(m2_mask, m2);
 
-//  git.Init(true, true);
 
-  long bsize = n / 10;
+  if (pid > 0) {
+    // Note: g_mask and miss_mask can be recovered from PRG and
+    // need not be written
+    mpc.WriteToFile(m1, fs);
+    mpc.WriteToFile(m2, fs);
 
-  cout << "Begin processing:" << endl;
+    spdlog::info("Finished writing Beaver partitioned m1, m2 data");
+    PrintMat(m1);
+    PrintMat(m2);
 
-  tic();
-  for (int i = 0; i < n; i++) {
-    Mat<ZZ_p> g;
-    Vec<ZZ_p> miss, p;
-
-//    git.GetNextGMP(g, miss, p);
-
-    if (pid > 0) {
-      pheno[i] = p[0];
-      for (int j = 0; j < Param::NUM_COVS; j++) {
-        cov[i][j] = p[1 + j];
-      }
-    }
-
-    // In practice this would be done in one batch
-    Mat<ZZ_p> g_mask;
-    Vec<ZZ_p> miss_mask;
-    mpc.BeaverPartition(g_mask, g);
-    mpc.BeaverPartition(miss_mask, miss);
-
-    if (pid > 0) {
-      // Note: g_mask and miss_mask can be recovered from PRG and
-      // need not be written
-      mpc.WriteToFile(g, fs);
-      mpc.WriteToFile(miss, fs);
-    }
-
-    if ((i + 1) % bsize == 0 || i == n - 1) {
-      cout << "\t" << i+1 << " / " << n << ", "; toc(); tic();
-    }
   }
 
-//  git.Terminate();
+  Mat<ZZ_p> mat;
+  Init(mat, m1_row, m2_col);
+  mpc.BeaverMultMat(mat, m1, m1_mask, m2, m2_mask);
+  mpc.BeaverReconstruct(mat);
+
+  //  For FP
+  mpc.Trunc(mat);
+
+  mpc.RevealSym(mat);
+
+
+
+  spdlog::info("WITHOUT TRUNC !!! ");
+  spdlog::info("Mat mult completed");
+  PrintMat(mat);
+
+  Mat<double> lmat;
+  FPToDouble(lmat, mat, Param::NBIT_K, Param::NBIT_F);
+  PrintMat(lmat);
+
+  mpc.RevealSym(m1_mask);
+  m1 = m1_mask + m1;
+  spdlog::info("Mat check 1 completed");
+  PrintMat(m1);
+
+  mpc.RevealSym(m2_mask);
+  m2 = m2_mask + m2;
+  spdlog::info("Mat check 2 completed");
+  PrintMat(m2);
+
+  git.Terminate();
 
   fs.close();
 
-  cout << "Finished writing Beaver partitioned genotype data" << endl;
-
-  if (Param::DEBUG) {
-    cout << "pheno" << endl;
-    mpc.Print(pheno, 5);
-    cout << "cov" << endl;
-    mpc.Print(cov[0], 5);
-  }
-
-  fs.open(cache(pid, "input_pheno_cov").c_str(), ios::out | ios::binary);
-  mpc.WriteToFile(pheno, fs);
-  mpc.WriteToFile(cov, fs);
-  fs.close();
-
-  cout << "Finished writing phenotype and covariate data" << endl;
+////  Read Test
+//  Mat<ZZ_p> input_m1;
+//  Mat<ZZ_p> input_m2;
+//
+//  Init(input_m1, m1_row, m1_col);
+//  Init(input_m2, m2_row, m2_col);
+//  if (pid > 0) {
+//
+//    ifstream ifs;
+//    ifs.open(cache(pid, "input_m1_m2").c_str(), ios::binary);
+//    mpc.ReadFromFile(input_m1, ifs, Param::M1_NUM_ROW, Param::M1_NUM_COL);
+//    mpc.ReadFromFile(input_m2, ifs, Param::M2_NUM_ROW, Param::M2_NUM_COL);
+//    ifs.close();
+//
+//    spdlog::info("Print input m1 & m2 from bin for pid : {}", pid);
+//    PrintMat(input_m1);
+//    PrintMat(input_m2);
+//
+//    Mat<ZZ_p> result;
+//    Init(result, m1_row, m2_col);
+//
+////    Mat<ZZ_p> m1_mask;
+////    Mat<ZZ_p> m2_mask;
+////    mpc.BeaverPartition(m1_mask, input_m1);
+////    mpc.BeaverPartition(m2_mask, input_m2);
+//    mpc.MultMat(result, input_m1, input_m2);
+//    mpc.Trunc(result);
+//
+//
+////    mpc.BeaverMultMat(result, input_m1, m1_mask, input_m2, m2_mask);
+////    input_m1.kill();
+////    m1_mask.kill();
+////    m2_mask.kill();
+////
+////    mpc.BeaverReconstruct(result);
+////    mpc.Trunc(result);
+//    mpc.RevealSym(result);
+//
+//    spdlog::info("Result!!!!! ::::");
+//    PrintMat(result);
+//  }
 
   return true;
 }
