@@ -11,8 +11,6 @@
 #include <map>
 #include <iostream>
 #include <sstream>
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/basic_file_sink.h"
 
 using namespace NTL;
 using namespace std;
@@ -25,12 +23,13 @@ bool send_stream(string data_dir, MPCEnv &mpc, int mode) {
   ifstream fin_m2(m2_file.c_str());
 
   if (!fin_m1.is_open()) {
-    spdlog::error("Error: could not open m1 {}", m1_file);
+
+    cout << "Error: could not open m1" << m1_file << endl;
     return false;
   }
 
   if (!fin_m2.is_open()) {
-    spdlog::error("Error: could not open m2 {}", m2_file);
+    cout << "Error: could not open m2" << m2_file << endl;
     return false;
   }
 
@@ -83,7 +82,8 @@ bool send_stream(string data_dir, MPCEnv &mpc, int mode) {
     for (int j = 0; j < Param::M1_NUM_COL; j++) {
       iss_m1 >> val;
       lm1[m1_lineno][j] = val;
-      spdlog::info("M1 ({},{}): {}", m1_lineno, j, val );
+
+      cout << "M1(" << m1_lineno << ", " << j << "): "  << val << endl;
     }
     m1_lineno++;
   }
@@ -94,7 +94,8 @@ bool send_stream(string data_dir, MPCEnv &mpc, int mode) {
     for (int k = 0; k < Param::M2_NUM_COL; k++) {
       iss_m2 >> val2;
       lm2[m2_lineno][k] = val2;
-      spdlog::info("M2 ({},{}): {}", m2_lineno, k, val2 );
+
+      cout << "M2(" << m2_lineno << ", " << k << "): "  << val << endl;
     }
     m2_lineno++;
   }
@@ -105,7 +106,7 @@ bool send_stream(string data_dir, MPCEnv &mpc, int mode) {
   MPCEnv::RandMat(rm2, Param::M2_NUM_ROW, Param::M2_NUM_COL);
   mpc.RestoreSeed();
 
-  spdlog::info("print m1 & m2");
+  cout << "print m1 & m2" << endl;
   PrintMat(lm1);
   PrintMat(lm2);
   ZZ_p fp_one;
@@ -114,7 +115,8 @@ bool send_stream(string data_dir, MPCEnv &mpc, int mode) {
 //  m1 *= fp_one;
 //  m2 *= fp_one;
 
-  spdlog::info("print m1 & m2 after fp_one");
+  cout << "print m1 & m2 after fp_one" << endl;
+
   PrintMat(m1);
   PrintMat(m2);
 
@@ -124,22 +126,19 @@ bool send_stream(string data_dir, MPCEnv &mpc, int mode) {
   mpc.SendMat(m1, 2);
   mpc.SendMat(m2, 2);
 
-  spdlog::info("print m1 - rm1");
+  cout << "print m1 - rm1" << endl;
   PrintMat(m1);
-  spdlog::info("print m2 - rm2");
+  cout << "print m2 - rm2" << endl;
   PrintMat(m2);
 
-
-  spdlog::info("print rm1");
+  cout << "print rm1" << endl;
   PrintMat(rm1);
-  spdlog::info("print rm2");
+  cout << "print rm2" << endl;
   PrintMat(rm2);
 //
 // end
-//  spdlog::info("print m1 + rm1");
 //  m1 += rm1;
 //  PrintMat(m1);
-//  spdlog::info("print m2 + rm2");
 //  m2 += rm2;
 //  PrintMat(m2);
 
@@ -282,8 +281,6 @@ int main(int argc, char **argv) {
 
   string pid_str(argv[1]);
 
-  spdlog::info(pid_str);
-
   int pid;
   if (!Param::Convert(pid_str, pid, "party_id") || pid < 0 || pid > 3) {
     cout << "Error: party_id should be 0, 1, 2, or 3" << endl;
@@ -317,8 +314,6 @@ int main(int argc, char **argv) {
   pairs.push_back(make_pair(1, 3));
   pairs.push_back(make_pair(2, 3));
 
-//  spdlog::info("Pairs : {}", pairs.data()->first);
-
   /* Initialize MPC environment */
   MPCEnv mpc;
   if (!mpc.Initialize(pid, pairs)) {
@@ -332,14 +327,12 @@ int main(int argc, char **argv) {
   } else {
     /* Stream data upon request */
     int signal = mpc.ReceiveInt(1);
-    spdlog::info("Signal : {}", signal);
 
     while (signal != GwasIterator::TERM_CODE) {
       success = send_stream(data_dir, mpc, signal);
       if (!success) break;
 
       signal = mpc.ReceiveInt(1);
-      spdlog::info("Signal in While Loop : {}", signal);
     }
 
     cout << "Done with streaming data" << endl;

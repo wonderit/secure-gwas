@@ -116,7 +116,6 @@ private:
   MPCEnv *mpc;
   int pid;
   int num_left;
-  int index;
   bool pheno_flag;
   bool missing_flag;
 

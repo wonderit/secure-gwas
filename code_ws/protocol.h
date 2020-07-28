@@ -15,8 +15,6 @@
 #include <algorithm>
 
 #include <chrono>
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/basic_file_sink.h"
 
 using namespace NTL;
 using namespace std;
@@ -80,7 +78,6 @@ bool matmult_protocol(MPCEnv& mpc, int pid) {
   ofstream ofs;
   ifstream ifs;
   streampos strpos;
-  int ind;
   Vec<ZZ_p> tmp_vec;
   Mat<ZZ_p> tmp_mat;
 
@@ -98,8 +95,7 @@ bool matmult_protocol(MPCEnv& mpc, int pid) {
     cout << "\t" << cache(pid, "input_m1_m2") << endl;
     return false;
   }
-
-  spdlog::info("Initial data sharing results found");
+  cout << "Initial data sharing results found" << endl;
 
   ifs.open(cache(pid, "input_m1_m2").c_str(), ios::binary);
 
@@ -115,8 +111,7 @@ bool matmult_protocol(MPCEnv& mpc, int pid) {
 
 
   ifs.close();
-
-  spdlog::info("PID : {} - m1 & m2 loaded", pid);
+  cout << "PID : " << pid << "- m1 & m2 loaded" << endl;
   if (pid == 2) {
     mpc.SendMat(m1, 0);
     mpc.SendMat(m2, 0);
@@ -163,31 +158,34 @@ bool matmult_protocol(MPCEnv& mpc, int pid) {
 
   mpc.RevealSym(mat);
 
-  spdlog::info("Mat mult completed");
+
+  cout << "Mat mult completed" << endl;
   PrintMat(mat);
 
 
   mpc.AddPublic(mat, fp_one);
 
-  spdlog::info("Mat add fp_one");
+  cout << "Mat add fp_one" << endl;
   PrintMat(mat);
 
   mat *= fp_one;
 
-  spdlog::info("multiply fp_one to mat");
+  cout << "multiply fp_one to mat" << endl;
   PrintMat(mat);
 
   // Check Matrix 1
   mpc.RevealSym(m1_mask);
   m1 = m1_mask + m1;
-  spdlog::info("Check for Matrix 1");
+  cout << "Check for Matrix 1" << endl;
   PrintMat(m1);
 
   // Check Matrix 2
   mpc.RevealSym(m2_mask);
   m2 = m2_mask + m2;
-  spdlog::info("Check for Matrix 2");
+  cout << "Check for Matrix 2" << endl;
   PrintMat(m2);
+
+  return true;
 }
 
 bool logireg_protocol(MPCEnv& mpc, int pid) {
@@ -619,7 +617,7 @@ bool data_sharing_protocol(MPCEnv& mpc, int pid) {
 
   git.Init();
 
-  spdlog::info("Begin Processing");
+  cout << "Begin Processing" << endl;
 
   tic();
 
@@ -647,7 +645,7 @@ bool data_sharing_protocol(MPCEnv& mpc, int pid) {
     mpc.WriteToFile(m1, fs);
     mpc.WriteToFile(m2, fs);
 
-    spdlog::info("Finished writing Beaver partitioned m1, m2 data");
+    cout << "Finished writing Beaver partitioned m1, m2 data" << endl;
     PrintMat(m1);
     PrintMat(m2);
 
@@ -663,10 +661,6 @@ bool data_sharing_protocol(MPCEnv& mpc, int pid) {
 
   mpc.RevealSym(mat);
 
-
-
-  spdlog::info("WITHOUT TRUNC !!! ");
-  spdlog::info("Mat mult completed");
   PrintMat(mat);
 
   Mat<double> lmat;
@@ -675,12 +669,12 @@ bool data_sharing_protocol(MPCEnv& mpc, int pid) {
 
   mpc.RevealSym(m1_mask);
   m1 = m1_mask + m1;
-  spdlog::info("Mat check 1 completed");
+  cout << "Mat check 1 completed" << endl;
   PrintMat(m1);
 
   mpc.RevealSym(m2_mask);
   m2 = m2_mask + m2;
-  spdlog::info("Mat check 2 completed");
+  cout << "Mat check 2 completed" << endl;
   PrintMat(m2);
 
   git.Terminate();
@@ -701,7 +695,6 @@ bool data_sharing_protocol(MPCEnv& mpc, int pid) {
 //    mpc.ReadFromFile(input_m2, ifs, Param::M2_NUM_ROW, Param::M2_NUM_COL);
 //    ifs.close();
 //
-//    spdlog::info("Print input m1 & m2 from bin for pid : {}", pid);
 //    PrintMat(input_m1);
 //    PrintMat(input_m2);
 //
@@ -725,7 +718,6 @@ bool data_sharing_protocol(MPCEnv& mpc, int pid) {
 ////    mpc.Trunc(result);
 //    mpc.RevealSym(result);
 //
-//    spdlog::info("Result!!!!! ::::");
 //    PrintMat(result);
 //  }
 
@@ -744,12 +736,12 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
   cout << "n0: " << n0 << ", " << "m0: " << m0 << endl;
 
   // Shared variables
+  int ind;
   string s;
   fstream fs;
   ofstream ofs;
   ifstream ifs;
   streampos strpos;
-  int ind;
   Vec<ZZ_p> tmp_vec;
   Mat<ZZ_p> tmp_mat;
 

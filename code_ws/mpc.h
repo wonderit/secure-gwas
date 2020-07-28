@@ -13,8 +13,6 @@
 #include <fstream>
 #include <chrono>
 #include <NTL/BasicThreadPool.h>
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/basic_file_sink.h"
 
 using namespace NTL;
 using namespace std;
@@ -877,7 +875,6 @@ public:
 
     int nrow = a.NumRows();
     int ncol = a.NumCols();
-    spdlog::info("pid :: {}", pid);
     if (pid == 0) {
       Mat<T> x1;
       SwitchSeed(1);
@@ -1057,7 +1054,8 @@ public:
   void Reshape(Vec<T>& b, Mat<T>& a) {
     b.SetLength(a.NumRows() * a.NumCols());
     if (pid > 0) {
-      int ind = 0;
+      int ind
+      = 0;
       for (int i = 0; i < a.NumRows(); i++) {
         for (int j = 0; j < a.NumCols(); j++) {
           b[ind] = a[i][j];
@@ -1443,7 +1441,6 @@ private:
     BeaverPartition(ar, am, a, fid);
     BeaverPartition(br, bm, b, fid);
 
-    spdlog::info("row:col = {}:{}", out_rows, out_cols);
     Init(c, out_rows, out_cols);
     BeaverMult(c, ar, am, br, bm, elem_wise, fid);
     
